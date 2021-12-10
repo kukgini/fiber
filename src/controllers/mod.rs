@@ -2,10 +2,10 @@ use serde::Deserialize;
 
 pub mod connection;
 pub mod general;
-//pub mod credential_definition;
+pub mod credential_definition;
 pub mod schema;
-//pub mod issuance;
-//pub mod presentation;
+pub mod issuance;
+pub mod presentation;
 
 #[derive(Deserialize)]
 struct Request<T> {

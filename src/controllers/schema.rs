@@ -10,14 +10,14 @@ use crate::Agent;
 use crate::controllers::Request;
 
 #[derive(Serialize, Deserialize, Default)]
-struct Schema {
+pub struct Schema {
     schema_name: String,
     schema_version: String,
     attributes: Vec<String>
 }
 
 #[derive(Serialize, Deserialize)]
-struct CachedSchema {
+pub struct CachedSchema {
     schema_id: String,
     schema_json: String
 }

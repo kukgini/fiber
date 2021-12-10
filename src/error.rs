@@ -13,6 +13,10 @@ pub enum HarnessErrorType {
     RequestNotAcceptedError,
     #[display(fmt = "Not found")]
     NotFoundError,
+    #[display(fmt = "Invalid JSON")]
+    InvalidJson,
+    #[display(fmt = "Protocol error")]
+    ProtocolError,
 }
 
 #[derive(Debug, Display, Error)]
@@ -33,7 +37,9 @@ impl error::ResponseError for HarnessError {
         match self.kind {
             HarnessErrorType::InternalServerError => StatusCode::INTERNAL_SERVER_ERROR,
             HarnessErrorType::RequestNotAcceptedError => StatusCode::NOT_ACCEPTABLE,
+            HarnessErrorType::InvalidJson => StatusCode::NOT_ACCEPTABLE,
             HarnessErrorType::NotFoundError => StatusCode::NOT_FOUND,
+            HarnessErrorType::ProtocolError => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

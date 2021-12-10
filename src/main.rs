@@ -6,8 +6,7 @@ use std::sync::Mutex;
 
 use actix_web::{App, HttpServer, web, middleware};
 use pickledb::{PickleDb, PickleDbDumpPolicy, SerializationMethod};
-//use crate::controllers::{general, connection, credential_definition, issuance, schema, presentation};
-use crate::controllers::{general, schema, connection};
+use crate::controllers::{general, connection, credential_definition, issuance, schema, presentation};
 use clap::Parser;
 use aries_vcx::handlers::connection::connection::Connection;
 
@@ -51,9 +50,7 @@ enum State {
     CredentialSent,
     OfferReceived,
     RequestSent,
-    CredentialReceived,
     PresentationSent,
-    PresentationReceived,
     Done
 }
 
@@ -61,7 +58,6 @@ enum State {
 #[serde(rename_all = "lowercase")]
 enum Status {
     Active,
-    Inactive
 }
 
 #[derive(Clone, Serialize)]
@@ -93,31 +89,26 @@ impl Storage {
     }
 }
 
-struct Agent {
-    id: String,
+pub struct Agent {
     dbs: Storage,
-    state: State,
     status: Status,
     config: AgentConfig,
     last_connection: Option<Connection>
 }
 
-impl Agent {
-    fn get_state(&self) -> State {
-        self.state
-    }
-
-    fn set_state(&mut self, state: State) {
-        self.state = state
-    }
-
-    fn get_status(&self) -> Status {
-        self.status
-    }
-
-    fn set_status(&mut self, status: Status) {
-        self.status = status;
-    }
+#[macro_export]
+macro_rules! soft_assert_eq {
+    ($left:expr, $right:expr) => ({
+        match (&$left, &$right) {
+            (left_val, right_val) => {
+                if !(*left_val == *right_val) {
+                    return Err(HarnessError::from_msg(HarnessErrorType::InternalServerError, &format!(r#"assertion failed: `(left == right)`
+                    left: `{:?}`,
+                    right: `{:?}`"#, left_val, right_val)));
+                }
+            }
+        }
+    });
 }
 
 #[actix_web::main]
@@ -129,16 +120,16 @@ async fn main() -> std::io::Result<()> {
         setup::shutdown();
     }).expect("Error setting Ctrl-C handler");
 
-    let config = setup::initialize().await.unwrap();
+    let host = std::env::var("HOST").unwrap_or("0.0.0.0".to_string());
+
+    let config = setup::initialize().await;
 
     HttpServer::new(move || {
         App::new()
             .wrap(middleware::Logger::default())
             .wrap(middleware::NormalizePath::new(middleware::normalize::TrailingSlash::Trim))
             .data(Mutex::new(Agent {
-                id: String::from("alice"),
                 dbs: Storage::new(),
-                state: State::Initial,
                 status: Status::Active,
                 config: config.clone(),
                 last_connection: None
@@ -147,14 +138,16 @@ async fn main() -> std::io::Result<()> {
                 web::scope("/agent")
                     .configure(connection::config)
                     .configure(schema::config)
-                    // .configure(credential_definition::config)
-                    // .configure(issuance::config)
-                    // .configure(presentation::config)
+                    .configure(credential_definition::config)
+                    .configure(issuance::config)
+                    .configure(presentation::config)
                     .configure(general::config)
             )
         })
+        .keep_alive(30)
+        .client_timeout(30000)
         .workers(1)
-        .bind(format!("0.0.0.0:{}", opts.port))?
+        .bind(format!("{}:{}", host, opts.port))?
         .run()
         .await
 }
